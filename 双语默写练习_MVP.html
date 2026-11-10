@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>双语默写练习 · MVP</title>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --panel: #ffffff;
+    --border: #e3e6eb;
+    --text: #1f2329;
+    --muted: #8a9099;
+    --primary: #2f6fed;
+    --primary-soft: #eaf1ff;
+    --green: #1f9d55;
+    --green-soft: #e8f7ee;
+    --amber: #d98a00;
+    --amber-soft: #fff4e0;
+    --red: #d8453a;
+    --red-soft: #fdecea;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.6;
+  }
+  header {
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    padding: 14px 20px; font-weight: 700; font-size: 18px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  header .tag { font-size: 12px; font-weight: 400; color: var(--muted); }
+  .wrap { max-width: 860px; margin: 18px auto; padding: 0 16px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tab {
+    border: 1px solid var(--border); background: var(--panel); color: var(--text);
+    padding: 8px 16px; border-radius: 999px; cursor: pointer; font-size: 14px;
+  }
+  .tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px 20px; margin-bottom: 16px;
+  }
+  .card h3 { margin: 0 0 12px; font-size: 15px; }
+  textarea {
+    width: 100%; min-height: 140px; border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; font-size: 14px; font-family: inherit; resize: vertical;
+  }
+  input[type=text] {
+    border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: 14px;
+    width: 100%;
+  }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .row > * { flex: 1; min-width: 160px; }
+  button {
+    border: none; border-radius: 8px; padding: 9px 16px; font-size: 14px; cursor: pointer;
+    background: var(--primary); color: #fff; font-family: inherit;
+  }
+  button.ghost { background: var(--panel); color: var(--text); border: 1px solid var(--border); }
+  button.green { background: var(--green); }
+  button.amber { background: var(--amber); }
+  button.red { background: var(--red); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.speak { padding: 4px 10px; font-size: 13px; background: var(--primary-soft); color: var(--primary); }
+  .zh-show .speak { margin-left: 10px; vertical-align: middle; }
+  .hint { font-size: 12px; color: var(--muted); margin: 6px 0; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; }
+  .pill.new { background: #eef0f3; color: var(--muted); }
+  .pill.known { background: var(--green-soft); color: var(--green); }
+  .pill.fuzzy { background: var(--amber-soft); color: var(--amber); }
+  .pill.unknown { background: var(--red-soft); color: var(--red); }
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .stat { text-align: center; padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
+  .stat b { display: block; font-size: 22px; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; }
+  .lib-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .lib-item .zh { font-weight: 600; }
+  .lib-item .en { color: var(--muted); }
+  .lib-edit { padding: 12px; border: 1px solid var(--primary); border-radius: 8px; margin: 8px 0; background: var(--primary-soft); }
+  .lib-edit .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .lib-edit .row > * { flex: 1; min-width: 140px; }
+  .lib-edit select { border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: 14px; font-family: inherit; }
+  .zh-show { font-size: 26px; font-weight: 700; margin: 8px 0 18px; }
+  .feedback { margin-top: 14px; padding: 12px; border-radius: 8px; font-size: 14px; display: none; }
+  .feedback.ok { background: var(--green-soft); color: var(--green); display: block; }
+  .feedback.bad { background: var(--red-soft); color: var(--red); display: block; }
+  .feedback .corr { font-weight: 700; }
+  .mark-row { display: none; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .mark-row.show { display: flex; }
+  .empty { color: var(--muted); text-align: center; padding: 30px 0; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<header>📘 双语默写练习 <span class="tag">MVP · 一期 · 纯前端离线版</span></header>
+<div class="wrap">
+  <div class="tabs">
+    <div class="tab active" data-tab="import">导入</div>
+    <div class="tab" data-tab="practice">练习</div>
+    <div class="tab" data-tab="review">复习</div>
+    <div class="tab" data-tab="library">题库</div>
+    <div class="tab" data-tab="stats">统计</div>
+  </div>
+
+  <!-- 导入 -->
+  <section id="tab-import">
+    <div class="card">
+      <h3>导入中英词条</h3>
+      <div class="hint">每行一条，格式：<b>英文 | 中文</b>（竖线、Tab 或逗号分隔均可）。支持从 <b>.txt / .csv</b> 文件导入。例如：<br>
+        Practice makes perfect. | 熟能生巧。<br>
+        look forward to | 期待</div>
+      <div class="row" style="margin-bottom:10px;">
+        <input type="file" id="importFile" accept=".txt,.csv,text/plain,text/csv" style="flex:2; font-size:13px; padding:8px; border:1px solid var(--border); border-radius:8px;" />
+        <button class="ghost" id="btnPickFile" style="flex:0 0 auto;">从文件解析</button>
+      </div>
+      <textarea id="importText" placeholder="Practice makes perfect. | 熟能生巧。&#10;look forward to | 期待"></textarea>
+      <div class="row" style="margin-top:10px;">
+        <input type="text" id="importGroup" placeholder="分组名称（如：六年级 Unit3）" />
+        <button id="btnImport" style="flex:0 0 auto;">解析并导入</button>
+      </div>
+      <div class="hint" id="importMsg"></div>
+    </div>
+  </section>
+
+  <!-- 练习 -->
+  <section id="tab-practice" class="hidden">
+    <div class="card">
+      <div class="row" style="margin-bottom:12px;">
+        <select id="practiceGroup" style="flex:2;padding:9px;border-radius:8px;border:1px solid var(--border);">
+          <option value="__all__">全部词条</option>
+        </select>
+        <button class="ghost" id="btnStart" style="flex:0 0 auto;">开始 / 重置</button>
+        <button class="ghost" id="btnShuffle" style="flex:0 0 auto;">打乱顺序</button>
+        <label style="flex:0 0 auto; display:flex; align-items:center; gap:4px; font-size:13px; color:var(--muted); white-space:nowrap;">
+          <input type="checkbox" id="autoSpeakZh" checked /> 自动读中文
+        </label>
+      </div>
+      <div id="practiceArea">
+        <div class="empty">选择分组后点击「开始 / 重置」。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 复习 -->
+  <section id="tab-review" class="hidden">
+    <div class="card">
+      <h3>今日复习（优先模糊 / 不会）</h3>
+      <div class="hint">复习池为所有「模糊」和「不会」的词条，以及到期回顾的「熟练」词条。点击进入逐条复习。</div>
+      <div id="reviewPool" class="empty">暂无待复习内容。</div>
+      <div class="row" style="margin-top:12px;">
+        <button id="btnReviewStart" style="flex:0 0 auto;">开始复习</button>
+        <label style="flex:0 0 auto; display:flex; align-items:center; gap:4px; font-size:13px; color:var(--muted); white-space:nowrap;">
+          <input type="checkbox" id="autoSpeakZhReview" checked /> 自动读中文
+        </label>
+      </div>
+      <div id="reviewArea" class="hidden"></div>
+    </div>
+  </section>
+
+  <!-- 题库 -->
+  <section id="tab-library" class="hidden">
+    <div class="card">
+      <div class="row" style="margin-bottom:12px;">
+        <select id="libraryGroup" style="flex:2;padding:9px;border-radius:8px;border:1px solid var(--border);">
+          <option value="__all__">全部分组</option>
+        </select>
+        <button class="ghost" id="btnClearAll" style="flex:0 0 auto;">清空全部</button>
+      </div>
+      <div id="libraryList"><div class="empty">题库为空，请先导入。</div></div>
+    </div>
+  </section>
+
+  <!-- 统计 -->
+  <section id="tab-stats" class="hidden">
+    <div class="card">
+      <h3>学习统计</h3>
+      <div class="stat-grid" id="statGrid"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const KEY = 'bilingual_cards_v1';
+const STATUS = { new:'未学', known:'熟练', fuzzy:'模糊', unknown:'不会' };
+
+// === 内置默认词库（来源：U1-U3语言点汇总.pdf，共 139 条，已按单元/课分组）===
+const SEED = [["U1 Starting out+Understanding ideas", "do team activities", "开展小组活动"], ["U1 Starting out+Understanding ideas", "give flowers to...", "给……送花"], ["U1 Starting out+Understanding ideas", "get timetables", "拿到作息安排表"], ["U1 Starting out+Understanding ideas", "write down", "把……写下来"], ["U1 Starting out+Understanding ideas", "point out the mistake", "指出错误"], ["U1 Starting out+Understanding ideas", "It is + (not) + adj. + to do sth", "做……（不）怎么样"], ["U1 Starting out+Understanding ideas", "look up at sb.", "抬头看某人"], ["U1 Starting out+Understanding ideas", "put up my hand", "举起了我的手"], ["U1 Starting out+Understanding ideas", "Confucius / Mencius", "孔子 / 孟子"], ["U1 Starting out+Understanding ideas", "Well done!", "做得好"], ["U1 Starting out+Understanding ideas", "in fact", "实际上"], ["U1 Starting out+Understanding ideas", "think more in your learning", "在学习中多思考"], ["U1 Starting out+Understanding ideas", "Learning without thinking is of no use.", "学而不思则罔"], ["U1 Starting out+Understanding ideas", "Questions jump into my mind.", "各种问题一下子涌上我的心头"], ["U1 Starting out+Understanding ideas", "My eyes meet hers.", "我和她四目相对"], ["U1 Starting out+Understanding ideas", "My mouth feels dry.", "我嘴发干"], ["U1 Starting out+Understanding ideas", "That's really an important lesson!", "这真是很重要的一课"], ["U1 Developing ideas", "the students' union", "学生会"], ["U1 Developing ideas", "hold all kinds of activities", "举办各种活动"], ["U1 Developing ideas", "a cultural festival", "文化节"], ["U1 Developing ideas", "a sports meet", "运动会"], ["U1 Developing ideas", "hold a talk", "举办一场讲座"], ["U1 Developing ideas", "have some advice", "有一些建议"], ["U1 Developing ideas", "do the most important things first", "先做最重要的事"], ["U1 Developing ideas", "turn a big task into small ones", "把一个大任务变成几个小任务"], ["U1 Developing ideas", "work on ... day by day", "一天一天努力做"], ["U1 Developing ideas", "describe a problem", "描述一个问题"], ["U1 Developing ideas", "state a problem", "陈述一个问题"], ["U1 Developing ideas", "provide more details", "提供更多的细节"], ["U1 Developing ideas", "finish...on time", "按时完成"], ["U1 Developing ideas", "It's hard to plan their time.", "很难规划他们的时间"], ["U1 Developing ideas", "First, every day, write down your tasks and the time for each task.", "首先，每天写下你的各项任务以及每项任务所需的时间"], ["U1 Developing ideas", "A project may take weeks.", "一个项目可能要花费数周"], ["U1 Developing ideas", "It's hard to decide what to do first.", "很难决定先做哪个"], ["U1 Developing ideas", "It takes one month to finish a book report.", "完成一篇书评需要花费一个月"], ["U1 Reading for writing", "share some thoughts with...", "与……分享一些想法"], ["U1 Reading for writing", "Time flies.", "时光飞逝"], ["U1 Reading for writing", "protect ... from ...", "保护……免于"], ["U1 Reading for writing", "face new problems", "面临新问题"], ["U1 Reading for writing", "try one's best", "尽某人最大努力"], ["U1 Reading for writing", "work hard", "努力工作/学习"], ["U1 Reading for writing", "I'm a little nervous.", "我有点紧张"], ["U1 Reading for writing", "Junior high is like a river. It is wide and the water moves fast.", "初中像一条河。河面宽阔，水流湍急"], ["U1 Reading for writing", "Sometimes, you have to sail your boat by yourself.", "有些时候，你需要独自驾船前行"], ["U1 Reading for writing", "You will go through storms towards the sea.", "你会穿越风雨，向着大海前行"], ["U1 Reading for writing", "We hope this letter helps you in the coming years.", "我们希望这封信能在未来的几年里，对你有帮助"], ["U2 Starting out+Understanding ideas", "have got", "有"], ["U2 Starting out+Understanding ideas", "plant flowers", "种花"], ["U2 Starting out+Understanding ideas", "make friends", "交朋友"], ["U2 Starting out+Understanding ideas", "ride a bike", "骑自行车"], ["U2 Starting out+Understanding ideas", "a school club", "一个学校俱乐部"], ["U2 Starting out+Understanding ideas", "play the violin", "拉小提琴"], ["U2 Starting out+Understanding ideas", "the benefits of...", "的益处"], ["U2 Starting out+Understanding ideas", "rush into...", "冲进"], ["U2 Starting out+Understanding ideas", "on the stage", "在舞台上"], ["U2 Starting out+Understanding ideas", "nod to", "向…点头"], ["U2 Starting out+Understanding ideas", "As a music lover, I play the electric guitar in the school band.", "作为一个音乐爱好者，我在学校乐队里弹电吉他"], ["U2 Starting out+Understanding ideas", "There is so much fun in music.", "音乐里有好多乐趣"], ["U2 Starting out+Understanding ideas", "He likes playing the erhu in the park with his friends.", "他喜欢和朋友在公园拉二胡"], ["U2 Starting out+Understanding ideas", "An idea suddenly hits me.", "我忽然想起了一个主意"], ["U2 Starting out+Understanding ideas", "There is an art festival every autumn in my school.", "在我的学校里每个秋天都有一个艺术节"], ["U2 Starting out+Understanding ideas", "It feels great to enjoy our hobby together.", "一起享受我们的爱好感觉很棒"], ["U2 Developing ideas", "There's a brown bird in the classroom.", "在教室里有一只棕色的鸟"], ["U2 Developing ideas", "He looks at the bird carefully.", "他仔细地看了这只鸟"], ["U2 Developing ideas", "These kinds of birds have weak legs, so they can't take off from the ground.", "这些种类的鸟有很弱的腿，所以它们不能从地面起飞"], ["U2 Developing ideas", "They need to take off from a high place.", "它们需要从一个高的地方起飞"], ["U2 Developing ideas", "My dad takes me to watch birds every summer.", "我的爸爸每年夏天都带我去观鸟"], ["U2 Developing ideas", "It helps me learn more about nature.", "它帮助我能更多地了解自然"], ["U2 Developing ideas", "bird-watchers", "观鸟者们"], ["U2 Developing ideas", "join the Bird-watching Club", "加入观鸟俱乐部"], ["U2 Developing ideas", "go closer", "走更近些"], ["U2 Developing ideas", "the school news station", "学校新闻站"], ["U2 Developing ideas", "interview", "采访"], ["U2 Developing ideas", "swift", "雨燕"], ["U2 Reading for writing", "shake one's head", "摇头"], ["U2 Reading for writing", "feel a bit lonely", "感觉有点孤独"], ["U2 Reading for writing", "magic stories", "奇幻故事"], ["U2 Reading for writing", "make friends with", "和…交朋友"], ["U2 Reading for writing", "on the last page", "在最后一页"], ["U2 Reading for writing", "the best ending", "最好的结局"], ["U2 Reading for writing", "be awake", "醒着的状态"], ["U2 Reading for writing", "different people", "不同的人"], ["U2 Reading for writing", "at midnight", "在午夜"], ["U2 Reading for writing", "She wants to make friends and share the joy of writing.", "她想交朋友并和大家分享写作的乐趣"], ["U2 Reading for writing", "Emma puts the notebook on a shelf and leaves.", "把笔记本放在架子上离开了"], ["U2 Reading for writing", "How about starting a writing group?", "开设个写作小组怎么样"], ["U2 Reading for writing", "I like writing magic stories.", "我喜欢写魔法故事"], ["U2 Reading for writing", "There are many benefits of this hobby.", "这个爱好有很多好处"], ["U2 Reading for writing", "First, it can give me knowledge about writing.", "首先，它可以给予我写作方面的知识"], ["U2 Reading for writing", "Second, it is really fun/it can bring me fun.", "第二，它可以带给我乐趣"], ["U2 Reading for writing", "Third, it can help me make friends and share the joy of writing.", "第三，我可以结交朋友，分享写作的乐趣"], ["U3 Understanding ideas", "along a mountain road", "沿着山路"], ["U3 Understanding ideas", "serve as", "担任；充当"], ["U3 Understanding ideas", "be absent from home", "不在家"], ["U3 Understanding ideas", "take over", "接管；接手"], ["U3 Understanding ideas", "on one's first day of work", "在某人工作第一天"], ["U3 Understanding ideas", "along the way", "一路上；沿途"], ["U3 Understanding ideas", "see into each other's hearts", "读懂彼此的内心"], ["U3 Understanding ideas", "carry sb across a cold river", "背着某人渡过冰冷的河水"], ["U3 Understanding ideas", "bring back the memory of", "唤起……的回忆"], ["U3 Understanding ideas", "run down one's face", "从某人脸上滑落"], ["U3 Understanding ideas", "hide one's care in one's heart", "将关心藏在心底"], ["U3 Understanding ideas", "like a mountain", "像大山一样"], ["U3 Understanding ideas", "Along a mountain road, a handsome young man walks fast.", "沿着一条山路，一个英俊的年轻人快步走着"], ["U3 Understanding ideas", "It's a touching story about the love between father and son.", "这是一个关于父子之间爱的感人故事"], ["U3 Understanding ideas", "But now the son is taking over his father's position.", "但是现在儿子要接手父亲的岗位"], ["U3 Understanding ideas", "It brings back the father's memory of carrying the son on his shoulders.", "这唤起了父亲背着儿子的回忆"], ["U3 Understanding ideas", "His love may be silent. But like a mountain, it is always there.", "他的爱或许是沉默的，但它如大山一般，一直都在"], ["U3 Developing ideas", "have a problem with somebody", "与某人有矛盾/和某人相处有问题"], ["U3 Developing ideas", "help (somebody) with something", "帮助某人做某事"], ["U3 Developing ideas", "pick somebody up", "接某人"], ["U3 Developing ideas", "buy somebody something", "给某人买某物"], ["U3 Developing ideas", "dress up as a queen", "装扮成女王"], ["U3 Developing ideas", "be happy about something", "对某事感到开心"], ["U3 Developing ideas", "have a (good) talk with somebody", "和某人（好好）谈一谈"], ["U3 Developing ideas", "change after work", "下班后换衣服"], ["U3 Developing ideas", "It's +adj. to do something.", "做某事是……的"], ["U3 Developing ideas", "It's a bit difficult to talk about.", "这件事有点难以启齿"], ["U3 Developing ideas", "not...any more", "不再"], ["U3 Developing ideas", "I'm not a little girl any more.", "我不再是小女孩了"], ["U3 Developing ideas", "I hope you're not hurt.", "希望你没有受伤"], ["U3 Developing ideas", "I'm glad you told me this, my girl.", "很高兴你把这件事告诉了我，孩子"], ["U3 Reading for writing", "be close to", "靠近；离……近"], ["U3 Reading for writing", "each other", "互相；彼此"], ["U3 Reading for writing", "have a serious disease", "患重病"], ["U3 Reading for writing", "have (has) to", "不得不；必须"], ["U3 Reading for writing", "feel lonely", "感到孤独"], ["U3 Reading for writing", "want to go out and play", "想要出去玩"], ["U3 Reading for writing", "find a way", "找到办法"], ["U3 Reading for writing", "for the first time", "第一次"], ["U3 Reading for writing", "take part in bike races", "参加自行车比赛"], ["U3 Reading for writing", "it's+adj. for somebody to do something.", "对某人来说做某事是……的"], ["U3 Reading for writing", "refuse to race without his brother", "拒绝在没有弟弟的情况下参赛"], ["U3 Reading for writing", "enjoy the time together", "享受共处的时光"], ["U3 Reading for writing", "It's hard for John to pull Robert's trailer.", "对John 来说，拉Robert 的拖车很困难"], ["U3 Reading for writing", "A big, bright smile appears on his face.", "他脸上露出灿烂的笑容"], ["U3 Reading for writing", "But for the brothers, some things are more important than winning.", "但对这兄弟俩来说，有些事比获胜更重要"], ["U3 Reading for writing", "For the Taylor brothers, the result doesn't really matter.", "对Taylor 兄弟而言，结果其实并不重要"], ["U3 Reading for writing", "The love between them powers their bike.", "他们之间的爱为他们的自行车提供动力"]];
+
+function load(){
+  const raw = localStorage.getItem(KEY);
+  if(raw){ try { return JSON.parse(raw); } catch(e){ } }
+  const seeded = SEED.map(([group,en,zh])=>({
+    id: uid(), en, zh, group, status:'new', created:Date.now(),
+    lastReviewed:0, reviewCount:0, wrong:0, nextReview:0, streak:0
+  }));
+  save(seeded);
+  return seeded;
+}
+
+function save(arr){ localStorage.setItem(KEY, JSON.stringify(arr)); }
+
+let cards = load();
+
+/* ---------- 工具 ---------- */
+function norm(s){
+  return (s||'').toLowerCase().replace(/[\s]/g,'').replace(/[.,;:!?'"()\[\]{}<>\/\\]/g,'');
+}
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+/* ---------- 语音朗读（Web Speech API，纯前端） ---------- */
+let _voices = [];
+function _loadVoices(){ try { _voices = ('speechSynthesis' in window) ? speechSynthesis.getVoices() : []; } catch(e){ _voices = []; } }
+if('speechSynthesis' in window){ _loadVoices(); speechSynthesis.onvoiceschanged = _loadVoices; }
+function speak(text, lang){
+  if(!('speechSynthesis' in window) || !text) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang || 'zh-CN';
+    const prefix = (lang || 'zh-CN').slice(0,2).toLowerCase();
+    const v = _voices.find(v => (v.lang||'').replace('_','-').toLowerCase().startsWith(prefix));
+    if(v) u.voice = v;
+    u.rate = (lang && lang.indexOf('zh') === 0) ? 0.9 : 0.95;
+    u.pitch = 1;
+    speechSynthesis.speak(u);
+  } catch(e){ /* 朗读不可用，静默降级 */ }
+}
+function groups(){
+  const g = new Set(); cards.forEach(c=>g.add(c.group||'未分组')); return [...g];
+}
+function refreshGroupSelectors(){
+  const g = groups();
+  [document.getElementById('practiceGroup'), document.getElementById('libraryGroup')].forEach(sel=>{
+    const cur = sel.value;
+    sel.innerHTML = '<option value="__all__">全部'+(sel.id==='practiceGroup'?'词条':'分组')+'</option>' +
+      g.map(x=>`<option value="${x}">${x}</option>`).join('');
+    if(g.includes(cur)) sel.value = cur;
+  });
+}
+
+/* ---------- 导入 ---------- */
+document.getElementById('btnImport').addEventListener('click', ()=>{
+  const text = document.getElementById('importText').value.trim();
+  const group = document.getElementById('importGroup').value.trim() || '未分组';
+  if(!text){ document.getElementById('importMsg').textContent='请先粘贴内容。'; return; }
+  const lines = text.split(/\r?\n/);
+  let added = 0, skipped = 0;
+  lines.forEach(line=>{
+    if(!line.trim()) return;
+    const parts = line.split(/\||\t/).map(s=>s.trim());
+    if(parts.length < 2 || !parts[0] || !parts[1]){ skipped++; return; }
+    cards.push({
+      id: uid(), en: parts[0], zh: parts[1],
+      group, status:'new', created: Date.now(),
+      lastReviewed: 0, reviewCount: 0, wrong: 0, nextReview: 0,
+      streak: 0
+    });
+    added++;
+  });
+  save(cards);
+  refreshGroupSelectors();
+  document.getElementById('importMsg').textContent = `成功导入 ${added} 条${skipped?`，跳过 ${skipped} 条（格式不符）`:''}。`;
+  document.getElementById('importText').value='';
+});
+
+/* ---------- 文件导入（.txt / .csv） ---------- */
+// 解析一行 CSV，支持带引号字段与转义双引号("")
+function parseCSVLine(line){
+  const out = []; let cur = ''; let q = false;
+  for(let i=0;i<line.length;i++){
+    const ch = line[i];
+    if(q){
+      if(ch === '"'){ if(line[i+1] === '"'){ cur += '"'; i++; } else { q = false; } }
+      else cur += ch;
+    } else {
+      if(ch === '"') q = true;
+      else if(ch === ',') { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+  }
+  out.push(cur);
+  return out.map(s=>s.trim());
+}
+
+// 判断是否表头行（含常见字段名）
+function isHeader(cells){
+  const joined = cells.join(' ').toLowerCase();
+  return /^(英文|english|en|zh|中文|chinese)$/.test(cells[0].toLowerCase()) ||
+         /英文|english|中文|chinese/.test(joined) && cells.length>=2;
+}
+
+function handleFile(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    let content = (e.target.result || '').replace(/^﻿/, ''); // 去 BOM
+    const isCsv = /\.csv$/i.test(file.name) || file.type === 'text/csv';
+    const lines = content.split(/\r?\n/);
+    const rows = [];
+    let headerSkipped = false;
+    lines.forEach((line, idx)=>{
+      if(!line.trim()) return;
+      const cells = isCsv ? parseCSVLine(line) : line.split(/\||\t/).map(s=>s.trim());
+      if(cells.length < 2 || !cells[0] || !cells[1]) return;
+      if(idx === 0 && !headerSkipped && isHeader(cells)){ headerSkipped = true; return; }
+      let en = cells[0], zh = cells[1];
+      // 列序纠偏：若首列为中文、次列为英文，则交换
+      if(/[一-龥]/.test(en) && !/[一-龥]/.test(zh)){ const t = en; en = zh; zh = t; }
+      rows.push(`${en} | ${zh}`);
+    });
+    if(rows.length === 0){
+      document.getElementById('importMsg').textContent = '未能从文件中解析出有效词条，请检查格式（英文 | 中文）。';
+      return;
+    }
+    document.getElementById('importText').value = rows.join('\n');
+    document.getElementById('importMsg').textContent =
+      `已从「${file.name}」解析 ${rows.length} 条，已填入上方文本框，检查无误后点击「解析并导入」。`;
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+document.getElementById('btnPickFile').addEventListener('click', ()=>document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', e=>{
+  const f = e.target.files && e.target.files[0];
+  handleFile(f);
+  e.target.value = ''; // 允许重复选择同一文件
+});
+
+/* ---------- 练习 ---------- */
+let queue = [], qIdx = 0;
+document.getElementById('btnStart').addEventListener('click', startPractice);
+document.getElementById('btnShuffle').addEventListener('click', ()=>{ shuffle(queue); qIdx=0; renderPractice(); });
+
+function startPractice(){
+  const g = document.getElementById('practiceGroup').value;
+  let pool = g==='__all__' ? cards.slice() : cards.filter(c=>c.group===g);
+  queue = pool; qIdx = 0;
+  if(queue.length===0){ document.getElementById('practiceArea').innerHTML='<div class="empty">该分组暂无词条。</div>'; return; }
+  renderPractice();
+}
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } }
+
+function renderPractice(){
+  const el = document.getElementById('practiceArea');
+  if(qIdx >= queue.length){ el.innerHTML = '<div class="empty">本轮已全部完成 🎉<br><button class="ghost" onclick="startPractice()">再来一轮</button></div>'; return; }
+  const c = queue[qIdx];
+  el.innerHTML = `
+    <div class="hint">进度 ${qIdx+1} / ${queue.length} · 分组：${c.group}</div>
+    <div class="zh-show">${c.zh}<button class="speak" id="btnSpeakZh" type="button">🔊 读中文</button></div>
+    <input type="text" id="answer" placeholder="输入对应英文…" autocomplete="off" />
+    <div class="row" style="margin-top:10px;">
+      <button id="btnCheck" style="flex:0 0 auto;">核对</button>
+      <button class="ghost" id="btnSkip" style="flex:0 0 auto;">跳过</button>
+      <button class="speak" id="btnSpeakEn" type="button" style="flex:0 0 auto;">🔊 读英文</button>
+    </div>
+    <div class="feedback" id="fb"></div>
+    <div class="mark-row" id="markRow">
+      <button class="green" data-s="known">熟练</button>
+      <button class="amber" data-s="fuzzy">模糊</button>
+      <button class="red" data-s="unknown">不会</button>
+    </div>`;
+  document.getElementById('btnCheck').addEventListener('click', checkAnswer);
+  document.getElementById('btnSkip').addEventListener('click', ()=>{ qIdx++; renderPractice(); });
+  document.getElementById('answer').focus();
+  document.getElementById('answer').addEventListener('keydown', e=>{ if(e.key==='Enter') checkAnswer(); });
+  const sp = document.getElementById('btnSpeakZh');
+  if(sp) sp.addEventListener('click', ()=>speak(c.zh,'zh-CN'));
+  const se = document.getElementById('btnSpeakEn');
+  if(se) se.addEventListener('click', ()=>speak(c.en,'en-US'));
+  const az = document.getElementById('autoSpeakZh');
+  if(az && az.checked) speak(c.zh,'zh-CN');
+}
+
+function checkAnswer(){
+  const c = queue[qIdx];
+  const ans = document.getElementById('answer').value;
+  const fb = document.getElementById('fb');
+  const markRow = document.getElementById('markRow');
+  if(norm(ans) === norm(c.en)){
+    fb.className = 'feedback ok';
+    fb.innerHTML = '✅ 正确！';
+    markRow.classList.add('show');
+  } else {
+    fb.className = 'feedback bad';
+    fb.innerHTML = `❌ 正确答案：<span class="corr">${c.en}</span>`;
+    markRow.classList.add('show');
+  }
+  markRow.querySelectorAll('button').forEach(b=>{
+    b.onclick = ()=>{
+      const s = b.dataset.s;
+      c.status = s; c.lastReviewed = Date.now(); c.reviewCount++;
+      if(s==='known'){ c.streak++; c.nextReview = Date.now() + c.streak*86400000; }
+      else { c.streak = 0; c.wrong++; c.nextReview = Date.now(); }
+      save(cards);
+      qIdx++; renderPractice();
+    };
+  });
+}
+
+/* ---------- 复习 ---------- */
+function dueCards(){
+  const now = Date.now();
+  return cards.filter(c => c.status==='fuzzy' || c.status==='unknown' || (c.status==='known' && c.nextReview && c.nextReview<=now));
+}
+function renderReviewPool(){
+  const pool = dueCards();
+  const el = document.getElementById('reviewPool');
+  if(pool.length===0){ el.className='empty'; el.textContent='暂无待复习内容。'; return; }
+  el.className='';
+  const byStatus = {fuzzy:0,unknown:0,known:0};
+  pool.forEach(c=>byStatus[c.status]++);
+  el.innerHTML = `<div class="hint">待复习共 <b>${pool.length}</b> 条：模糊 ${byStatus.fuzzy} · 不会 ${byStatus.unknown} · 到期回顾 ${byStatus.known}</div>`;
+}
+document.getElementById('btnReviewStart').addEventListener('click', ()=>{
+  queue = dueCards(); qIdx = 0;
+  const area = document.getElementById('reviewArea');
+  area.classList.remove('hidden');
+  if(queue.length===0){ area.innerHTML='<div class="empty">暂无待复习内容。</div>'; return; }
+  // 复用练习渲染：临时把 practiceArea 内容渲染到 reviewArea
+  renderInto(area);
+});
+// 复习复用渲染逻辑
+function renderInto(target){
+  const render = ()=>{
+    if(qIdx >= queue.length){ target.innerHTML='<div class="empty">复习完成 🎉</div>'; return; }
+    const c = queue[qIdx];
+    target.innerHTML = `
+      <div class="hint">复习 ${qIdx+1} / ${queue.length} · ${c.group}</div>
+      <div class="zh-show">${c.zh}<button class="speak" id="rSpeakZh" type="button">🔊 读中文</button></div>
+      <input type="text" id="ranswer" placeholder="输入对应英文…" autocomplete="off" />
+      <div class="row" style="margin-top:10px;"><button id="rcheck" style="flex:0 0 auto;">核对</button><button class="speak" id="rsEn" type="button" style="flex:0 0 auto; margin-left:8px;">🔊 读英文</button></div>
+      <div class="feedback" id="rfb"></div>
+      <div class="mark-row show" id="rmark">
+        <button class="green" data-s="known">熟练</button>
+        <button class="amber" data-s="fuzzy">模糊</button>
+        <button class="red" data-s="unknown">不会</button>
+      </div>`;
+    const check = ()=>{
+      const ans = document.getElementById('ranswer').value;
+      const fb = document.getElementById('rfb');
+      if(norm(ans)===norm(c.en)){ fb.className='feedback ok'; fb.innerHTML='✅ 正确！'; }
+      else { fb.className='feedback bad'; fb.innerHTML=`❌ 正确答案：<span class="corr">${c.en}</span>`; }
+      document.getElementById('rmark').querySelectorAll('button').forEach(b=>{
+        b.onclick = ()=>{
+          const s=b.dataset.s; c.status=s; c.lastReviewed=Date.now(); c.reviewCount++;
+          if(s==='known'){ c.streak++; c.nextReview=Date.now()+c.streak*86400000; }
+          else { c.streak=0; c.wrong++; c.nextReview=Date.now(); }
+          save(cards); renderReviewPool(); qIdx++; render();
+        };
+      });
+    };
+    document.getElementById('rcheck').onclick = check;
+    document.getElementById('ranswer').addEventListener('keydown', e=>{ if(e.key==='Enter') check(); });
+    document.getElementById('ranswer').focus();
+    const rsp = document.getElementById('rSpeakZh');
+    if(rsp) rsp.onclick = ()=>speak(c.zh,'zh-CN');
+    const rsEn = document.getElementById('rsEn');
+    if(rsEn) rsEn.onclick = ()=>speak(c.en,'en-US');
+    const ar = document.getElementById('autoSpeakZhReview');
+    if(ar && ar.checked) speak(c.zh,'zh-CN');
+  };
+  render();
+}
+
+/* ---------- 题库 ---------- */
+let editingId = null;
+function escAttr(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+document.getElementById('libraryGroup').addEventListener('change', renderLibrary);
+document.getElementById('btnClearAll').addEventListener('click', ()=>{
+  if(confirm('确定清空全部词条？此操作不可恢复。')){ cards=[]; save(cards); refreshGroupSelectors(); renderLibrary(); renderStats(); }
+});
+function renderLibrary(){
+  const g = document.getElementById('libraryGroup').value;
+  const list = g==='__all__' ? cards : cards.filter(c=>c.group===g);
+  const el = document.getElementById('libraryList');
+  if(list.length===0){ el.innerHTML='<div class="empty">该分组暂无词条。</div>'; return; }
+  el.innerHTML = list.map(c=>{
+    if(c.id===editingId){
+      return `
+    <div class="lib-edit">
+      <div class="row">
+        <input type="text" id="editEn" value="${escAttr(c.en)}" placeholder="英文" />
+        <input type="text" id="editZh" value="${escAttr(c.zh)}" placeholder="中文" />
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <input type="text" id="editGroup" value="${escAttr(c.group)}" placeholder="分组" />
+        <select id="editStatus">
+          <option value="new" ${c.status==='new'?'selected':''}>未学</option>
+          <option value="known" ${c.status==='known'?'selected':''}>熟练</option>
+          <option value="fuzzy" ${c.status==='fuzzy'?'selected':''}>模糊</option>
+          <option value="unknown" ${c.status==='unknown'?'selected':''}>不会</option>
+        </select>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <button class="green" onclick="saveCard('${c.id}')">保存</button>
+        <button class="ghost" onclick="cancelEdit()">取消</button>
+      </div>
+    </div>`;
+    }
+    return `
+    <div class="lib-item">
+      <span class="zh">${escHtml(c.zh)}</span>
+      <span class="en">${escHtml(c.en)}</span>
+      <span class="pill ${c.status}">${STATUS[c.status]}</span>
+      <span style="flex:1"></span>
+      <button class="ghost" onclick="editCard('${c.id}')">编辑</button>
+      <button class="ghost" onclick="delCard('${c.id}')">删除</button>
+    </div>`;
+  }).join('');
+  if(editingId){ const inp = document.getElementById('editEn'); if(inp) inp.focus(); }
+}
+function editCard(id){ editingId = id; renderLibrary(); }
+function cancelEdit(){ editingId = null; renderLibrary(); }
+function saveCard(id){
+  const en = document.getElementById('editEn').value.trim();
+  const zh = document.getElementById('editZh').value.trim();
+  const group = document.getElementById('editGroup').value.trim() || '未分组';
+  const status = document.getElementById('editStatus').value;
+  const c = cards.find(x=>x.id===id);
+  if(!c) return;
+  if(!en || !zh){ alert('英文和中文均不可为空。'); return; }
+  c.en = en; c.zh = zh; c.group = group; c.status = status;
+  save(cards);
+  editingId = null;
+  refreshGroupSelectors();
+  renderLibrary();
+  renderStats();
+}
+function delCard(id){ cards = cards.filter(c=>c.id!==id); save(cards); refreshGroupSelectors(); renderLibrary(); renderStats(); }
+
+/* ---------- 统计 ---------- */
+function renderStats(){
+  const total = cards.length;
+  const cnt = {known:0,fuzzy:0,unknown:0,new:0};
+  cards.forEach(c=>cnt[c.status]++);
+  document.getElementById('statGrid').innerHTML = `
+    <div class="stat">总词条<b>${total}</b></div>
+    <div class="stat">熟练<b style="color:var(--green)">${cnt.known}</b></div>
+    <div class="stat">模糊<b style="color:var(--amber)">${cnt.fuzzy}</b></div>
+    <div class="stat">不会<b style="color:var(--red)">${cnt.unknown}</b></div>`;
+}
+
+/* ---------- Tab 切换 ---------- */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.querySelectorAll('section[id^=tab-]').forEach(s=>s.classList.add('hidden'));
+    document.getElementById('tab-'+t.dataset.tab).classList.remove('hidden');
+    if(t.dataset.tab==='library') renderLibrary();
+    if(t.dataset.tab==='stats') renderStats();
+    if(t.dataset.tab==='review') renderReviewPool();
+    if(t.dataset.tab==='practice') refreshGroupSelectors();
+  });
+});
+
+refreshGroupSelectors();
+</script>
+</body>
+</html>

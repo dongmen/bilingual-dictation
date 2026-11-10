@@ -1,0 +1,18 @@
+# ===== 中间产物（已内联进 HTML，无需提交） =====
+_seed.json
+
+# ===== 项目元数据（WorkBuddy 等工具生成，非源码） =====
+.workbuddy/
+
+# ===== 系统 / 编辑器垃圾文件 =====
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.log
+*.tmp
+*~
+
+# ===== Python 缓存（若在本目录跑解析脚本） =====
+__pycache__/
+*.pyc
